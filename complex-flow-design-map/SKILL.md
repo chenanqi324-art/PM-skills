@@ -5,6 +5,8 @@ description: >
   自动识别完整流程分析、单页面展开、增量修改或流程审计场景，
   将业务组织为 Module → Flow → Node → State / Action → Transition → Target → UI，
   并输出统一编码、二维结构表、分支Flow、页面状态和设计稿清单。
+metadata:
+  version: "0.2.0"
 ---
 
 # Complex Flow Design Map
@@ -424,6 +426,55 @@ OCR识别成功后自动进入身份信息确认
 - 自动路由
 
 
+## 7.5 页面交互元素盘点
+
+建立 State 和 Action 之前，必须先对每个关键页面做一次从上到下的交互元素盘点，避免只关注跨页面主干而遗漏页面内固定入口。
+
+至少检查：
+
+- 返回、关闭、取消
+- 帮助、攻略、协议、详情
+- 输入框、选择器、上传、扫描
+- 固定主按钮和次按钮
+- 固定业务入口和跨流程入口
+- Modal、Sheet、Toast、Inline 提示
+- 系统自动识别、提交、路由和回流
+
+把所有明确可交互元素先列为 Candidate Action，再判断它属于 PA、AS、A 或 SA。
+
+页面上明确存在的固定入口不得因其不是 Happy Path 而省略。
+
+
+## 7.6 表单状态矩阵
+
+当 Node 包含输入、上传、选择或校验任务时，应建立与该任务有关的最小状态矩阵。
+
+优先检查：
+
+- 默认态 / 空值态
+- 输入中 / 未完成态
+- 格式校验失败态
+- 业务校验失败态
+- 校验通过 / 可提交态
+- 提交中 / Processing
+- 提交失败态
+
+不要机械生成原型和业务都不需要的状态；但对于会改变按钮可用性、错误提示、后续路径或需要独立 UI 的状态，不得省略。
+
+同一个固定 CTA 在这些 State 下应复用同一个 AS 编码，通过 Action可用条件、文案、Transition 和 Target 表达差异。
+
+
+## 7.7 主表行规则
+
+- PA 绑定 Node，不绑定特定 State。PA 独立成行时，State编码、State说明、State判断条件填 `—`。
+- AS 在相关 State 下逐行展开，但必须复用同一个 AS 编码。
+- A 只写在其所属 State 下。
+- SA 只写在触发它的 State 下。
+- 禁用的 Action 仍可保留在表中，但 Action可用条件应写清禁用原因，Transition 和 Target 填 `—`。
+- `Action可用条件` 应描述业务条件，不要只写“可用”或“禁用”。
+- 同一 State 编码只能对应一个稳定的状态定义；不同判断条件导致不同页面或操作表现时，应使用不同 State 编码。
+
+
 # 8. Transition
 
 Action 与 Target 必须拆开描述。
@@ -544,6 +595,26 @@ OCR失败
 ### End
 
 当前业务路径结束。
+
+
+## 8.1 Transition 选择优先级
+
+按以下规则选择，不要把所有跳转都写成 Continue：
+
+- `Show`：展示图片、攻略、协议、Modal、Sheet、Toast 或扫描器等局部界面，未进入新的业务路径。
+- `Stay`：页面数据或局部状态改变，但仍停留当前 Node。
+- `Continue`：沿同一 Flow 正常进入下一个 Node。
+- `Submit`：发起业务请求；请求结果通常再由 SA 执行 Continue、Route 或 Retry。
+- `Trigger`：进入具有不同后续 Node 集合的 Branch / Child Flow，包括跨端独立流程。
+- `Return`：返回来源 Node、父 Flow 或原业务场景。
+- `Route`：根据条件动态选择多个 Target。
+
+只要 Transition 会实际执行，就必须给出 Target编码和 Target说明：
+
+- Continue / Submit / Retry / Return 的 Target 优先写 Node 编码。
+- Trigger 的 Target 优先写 Flow 编码。
+- Show 的 Target 可写 UI 编码。
+- Target 无法从输入确认时，写 `TO_CONFIRM`，不要留空。
 
 
 # 9. State vs Flow Decision Rule
@@ -716,16 +787,20 @@ TO_CONFIRM
 还是
 - 新 Flow
 
+对每个关键 Node 完成页面交互元素盘点。先列出所有可见的固定入口、输入控件、扫描/上传、主次按钮、协议、帮助、Modal 和系统动作，再进入 State / Action 编码。
+
 
 ## Step 6
 
-梳理每个 Node 的：
+先为输入、上传、选择和校验类 Node 建立最小状态矩阵，再梳理每个 Node 的：
 
 - State
 - PA
 - AS
 - State Action
 - System Action
+
+固定页面入口使用独立 PA 行；固定 CTA 在不同 State 下复用同一个 AS 编码。
 
 
 ## Step 7
@@ -735,6 +810,8 @@ TO_CONFIRM
 Transition
 +
 Target
+
+非禁用 Action 不得缺少 Target编码；无法确认时标记 TO_CONFIRM。
 
 
 ## Step 8
@@ -764,6 +841,8 @@ Target
 
 映射需要真正产出的 UI。
 
+输出前执行完整性自检：可交互元素是否遗漏、表单状态是否完整、编码前缀是否一致、State编码是否唯一、AS是否被重复编码、Transition与Target是否成对存在。
+
 
 # 14. PAGE_EXPAND Workflow
 
@@ -792,12 +871,17 @@ Suggested Code
 
 ## Step 2
 
-先识别页面固定结构：
+先从上到下盘点页面固定结构和所有明确可交互元素：
 
 - 页面任务是什么
 - 哪些入口一直存在
 - 底部主操作位是否固定
 - 页面是否包含弹窗 / 半屏
+- 返回、帮助、攻略、协议、详情
+- 输入、选择、上传、扫描入口
+- 固定主按钮、次按钮和跨流程入口
+
+先形成 Candidate Action 清单，再分类 PA、AS、A、SA。不要只提取 Happy Path 上的按钮。
 
 
 ## Step 3
@@ -812,18 +896,20 @@ Suggested Code
 - Loading / Processing
 - 页面级错误
 - 业务校验错误
+- 提交中
+- 提交失败
 
-但不要机械生成所有状态。
+但不要机械生成所有状态。对于会改变按钮可用性、错误提示、后续路径或独立 UI 的状态必须保留。
 
 
 ## Step 4
 
-识别 PA。
+识别 PA。固定入口独立成行，State字段填 `—`。
 
 
 ## Step 5
 
-识别 AS。
+识别 AS。同一个固定操作位在不同 State 下复用同一个 AS 编码，并分别写清 Action可用条件、Transition 与 Target。
 
 
 ## Step 6
@@ -889,11 +975,29 @@ Target
 - 编码是否冲突
 - Target 是否不存在
 - 是否有未闭环 Branch
+- 页面上明确可点击的固定入口是否遗漏
+- 输入、上传、选择、校验类 Node 是否缺少默认、进行中、错误或可提交状态
+- 同一 State 编码是否对应多个不同状态定义
+- Node、State、Action 编码前缀是否与所属 Flow / Node 一致
+- 非禁用 Action 是否缺少 Transition 或 Target编码
+- 是否把 Show、Trigger 或 Submit 错写成 Continue
 
 
 # 17. Required Output — FLOW_MAP
 
 FLOW_MAP 默认输出以下内容。
+
+
+## Output Profile
+
+根据输出载体选择展示方式，但不得改变底层编码和关系：
+
+- `MASTER_TABLE`：适合 Excel、CSV 或用户明确要求完整主表时，使用完整字段表头。
+- `CHAT_SPLIT`：适合聊天窗口。将宽表拆为“Node / State 表”和“Action / Transition 表”，通过 Node编码、State编码关联。
+
+用户未指定时：聊天中优先使用 CHAT_SPLIT；需要下载、复制到表格或继续做设计稿管理时优先使用 MASTER_TABLE。
+
+不要为了适应展示宽度删除关键字段或业务关系。
 
 
 ## Part 1 — Business Tree
@@ -920,6 +1024,14 @@ Module
 B2.1-S20 OCR失败
 
 全部塞进一个字段。
+
+MASTER_TABLE 落表规则：
+
+- PA 独立成行，State字段填 `—`。
+- AS 按 State 展开并复用同一编码。
+- 禁用 Action 的 Transition 和 Target 填 `—`。
+- 可执行 Action 的 Target编码不得留空；无法确认时填 `TO_CONFIRM`。
+- 普通数据表应重复填写 Module、Flow、Node 值，便于筛选和机器处理；仅在面向阅读的表格展示中允许合并单元格。
 
 
 ## Part 3 — Trigger / Branch List
@@ -1079,6 +1191,12 @@ Trigger → B3
 13. 不要为了“完整”把相同后续流程重复画多遍。
 14. 如果 Child Flow 最终回主 Flow，用 Return / Continue 引用目标 Node。
 15. 已有编码必须优先继承，不得随意重编。
+16. 完整流程分析也必须对关键页面做局部交互元素盘点，不能只输出跨页面主干。
+17. 页面上明确存在的固定入口不得遗漏，即使它不在 Happy Path 上。
+18. 同一个 State 编码不得复用给不同状态。
+19. State、Action 编码前缀必须与所属 Node 一致，Node 编码必须与所属 Flow 一致。
+20. 非禁用 Action 必须同时有 Transition、Target编码和 Target说明。
+21. 不要把 Show、Submit、Trigger 统一写成 Continue。
 
 
 # 21. How to Handle Images
@@ -1129,3 +1247,5 @@ Target 标记 TO_CONFIRM。
 如果用户当前只分析一个页面：
 
 不要顺便把整个产品重新梳理一遍。
+
+聊天窗口中避免直接输出难以阅读的超宽表；优先使用 CHAT_SPLIT。用户要求 Excel/CSV 风格主表时使用 MASTER_TABLE，并保持可筛选、可追踪的完整字段。

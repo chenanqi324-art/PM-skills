@@ -24,31 +24,28 @@ Module
 - 区分 PA、AS、State Action 和 System Action
 - 生成统一、稳定的业务与 UI 编码
 - 输出结构化主表、分支清单和设计稿清单
+- 对关键页面进行交互元素盘点，避免遗漏帮助、攻略、扫描、协议等固定入口
+- 对输入、上传、选择和校验页面建立状态矩阵
+- 根据聊天或表格场景输出 CHAT_SPLIT 或 MASTER_TABLE
 - 在已有流程上增量修改，并保持原编码稳定
-- 审计遗漏状态、错误拆分、重复 UI 和未闭环分支
+- 审计遗漏状态、编码前缀、Transition / Target、重复 UI 和未闭环分支
 
 ## 文件说明
 
 当前下载包包含：
 
 ```text
-complex-flow-design-map-SKILL.md   Skill 正文
-README.md                          使用说明
+PM-skills/
+├── README.md
+└── complex-flow-design-map/
+    └── SKILL.md
 ```
 
-安装时建议整理为以下目录结构：
-
-```text
-complex-flow-design-map/
-├── SKILL.md
-└── README.md
-```
-
-也就是说，需要把 `complex-flow-design-map-SKILL.md` 重命名为 `SKILL.md`，再与本 README 一起放进 `complex-flow-design-map` 文件夹。
+仓库已经是 Codex 可直接识别的标准 Skill 目录，不需要再手动重命名文件。
 
 ## 安装方式
 
-将整理后的 `complex-flow-design-map` 文件夹放入 Codex 的 Skills 目录：
+将仓库中的 `complex-flow-design-map` 文件夹放入 Codex 的 Skills 目录：
 
 ```text
 ~/.codex/skills/complex-flow-design-map/
@@ -204,6 +201,15 @@ Skill 使用以下标准 Transition：
 
 Action 与 Target 会分开描述，便于维护和检查。
 
+Transition 选择遵循：局部展示使用 `Show`，同一 Flow 下一节点使用 `Continue`，提交服务请求使用 `Submit`，进入不同后续节点集合的分支使用 `Trigger`。可执行 Action 必须填写 Target 编码；无法确认时标记 `TO_CONFIRM`。
+
+### 输出方式
+
+- `MASTER_TABLE`：适合 Excel、CSV 或需要持续维护的完整主表。
+- `CHAT_SPLIT`：适合聊天窗口，将宽表拆成 Node / State 表与 Action / Transition 表。
+
+无论使用哪种展示方式，底层编码和业务关系保持一致。
+
 ### 置信度标记
 
 对于输入中没有明确给出的业务内容，Skill 会使用：
@@ -290,9 +296,21 @@ Action 与 Target 会分开描述，便于维护和检查。
 
 ## 版本说明
 
-当前版本为 V0.1 试用版，优先验证两个核心场景：
+### V0.2.0
+
+- 增加页面交互元素盘点，减少固定入口遗漏。
+- 增加表单状态矩阵，明确默认、输入中、错误、可提交和提交状态。
+- 明确 PA 独立行、AS 跨 State 复用及禁用 Action 的落表方式。
+- 加强 Show、Continue、Submit、Trigger 的选择规则和 Target 完整性。
+- 增加编码前缀、State 唯一性和 Action 完整性检查。
+- 增加 MASTER_TABLE 与 CHAT_SPLIT 两种展示模式。
+- 调整为标准 Skill 目录，可从 GitHub 仓库直接安装。
+
+### V0.1.0
+
+首个试用版本，优先验证两个核心场景：
 
 1. 完整原型或业务描述生成结构化流程表
 2. 单个页面展开 State、Action、Trigger 和 UI 状态
 
-建议根据实际试用结果逐步补充规则，避免一次性加入大量低频例外。
+版本回退可通过 Git 标签 `v0.1.0` 和 `v0.2.0` 完成。
